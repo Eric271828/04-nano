@@ -168,11 +168,11 @@ exitError (Error msg) = return (VErr msg)
 eval :: Env -> Expr -> Value
 --------------------------------------------------------------------------------
 eval = error "TBD:eval"
-
+-- define and use evalOp. Will investigate later
 --------------------------------------------------------------------------------
 evalOp :: Binop -> Value -> Value -> Value
 --------------------------------------------------------------------------------
-evalOp Minus (VInt a) (VInt b) = VInt (a - b)
+-- evalOp Minus (VInt a) (VInt b) = VInt (a - b)
 
 --------------------------------------------------------------------------------
 -- | `lookupId x env` returns the most recent
@@ -191,6 +191,7 @@ evalOp Minus (VInt a) (VInt b) = VInt (a - b)
 --------------------------------------------------------------------------------
 lookupId :: Id -> Env -> Value
 --------------------------------------------------------------------------------
+--recursive function to look for most recent
 lookupId id[] = error ("unbound variable: " ++ id)
 lookupId id ((x, y):xs)
   | id == x = y
