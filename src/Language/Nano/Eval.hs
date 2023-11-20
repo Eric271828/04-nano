@@ -191,7 +191,12 @@ evalOp = error "TBD:evalOp"
 --------------------------------------------------------------------------------
 lookupId :: Id -> Env -> Value
 --------------------------------------------------------------------------------
-lookupId = error "TBD:lookupId"
+lookupId id[] = error ("Unbound variable: " ++ id)
+lookupId id ((x, y):xs)
+  | id == x = y
+  | otherwise = lookupId id xs
+
+
 
 prelude :: Env
 prelude =
