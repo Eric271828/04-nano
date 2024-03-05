@@ -167,34 +167,25 @@ exitError (Error msg) = return (VErr msg)
 --------------------------------------------------------------------------------
 eval :: Env -> Expr -> Value
 --------------------------------------------------------------------------------
-eval _ (EInt a)  = (VInt a)
+eval _ (EInt i)  = (VInt i)
 eval _ (EBool b) = (VBool b)
 eval _ (ENil)    = (VNil)
-eval env (EVar c) = (lookupId c env)
-eval env (EBin op expr1 expr2) = evalOp op (eval env expr1) (eval env expr2)
-
+eval env (EVar id) = (lookupId id env)
+eval env (EBin func expr1 expr2) = evalOp func (eval env expr1) (eval env expr2)
 eval env (EIf p t f)
-    | eval env p == (VBool True)  = eval env t 
-    | eval env p == (VBool False) = eval env f
-    | otherwise  = throw (Error ("type error: eif"))
-
-eval env (ELet var e1 e2) = eval env' e2
-  where env'              = (var, eval env e1) : env
-
-eval env (ELam id e) = VClos env id e
-
-eval env (EApp e1 e2) = 
-    case (eval env e1) of
-      VClos closEnv x body -> eval env' body
-                                     where
-                                     v = eval env e2
-                                     env' = ((x,v) : closEnv) ++ env
-      (VPrim lam) -> lam (eval env e2)
-      _ -> throw (Error "Type Error")
-
-
-eval env (ELam id e) = VClos env id e
-
+          | (eval env p) /= (VBool True) && (eval env p) /= (VBool False) = throw (Error ("type error: EIf")) --VErr("type error: EIf")
+          | (eval env p) == (VBool True)  = (eval env t)
+          | (eval env p) == (VBool False) = (eval env f)
+          | otherwise = throw (Error ("type error: EIf")) --VErr("type error: EIf") 
+eval env (ELet id e1 e2) = eval bodyEnv e2
+                            where
+                              val = eval bodyEnv e1
+                              bodyEnv = ([(id, (val))] ++ env)
+eval env (ELam id e) = (VClos env id e)
+eval env (EApp expr1 expr2) = case (eval env expr1) of 
+                                (VClos bodyEnv id expr)  -> eval ([(id, eval env expr2)] ++ bodyEnv) expr
+                                VPrim func -> func (eval env expr2) 
+                                _ -> throw (Error ("type error: EApp")) --VErr("type error: EApp")
 
 
 -- define and use evalOp. Will investigate later
