@@ -167,48 +167,63 @@ exitError (Error msg) = return (VErr msg)
 --------------------------------------------------------------------------------
 eval :: Env -> Expr -> Value
 --------------------------------------------------------------------------------
-eval _ (EInt i)  = (VInt i)
+eval _ (EInt a)  = (VInt a)
 eval _ (EBool b) = (VBool b)
 eval _ (ENil)    = (VNil)
-eval env (EVar id) = (lookupId id env)
-eval env (EBin func expr1 expr2) = evalOp func (eval env expr1) (eval env expr2)
+eval env (EVar c) = (lookupId c env)
+eval env (EBin op expr1 expr2) = evalOp op (eval env expr1) (eval env expr2)
+
 eval env (EIf p t f)
-          | (eval env p) /= (VBool True) && (eval env p) /= (VBool False) = throw (Error ("type error: EIf")) --VErr("type error: EIf")
-          | (eval env p) == (VBool True)  = (eval env t)
-          | (eval env p) == (VBool False) = (eval env f)
-          | otherwise = throw (Error ("type error: EIf")) --VErr("type error: EIf") 
-eval env (ELet id e1 e2) = eval bodyEnv e2
-                            where
-                              val = eval bodyEnv e1
-                              bodyEnv = ([(id, (val))] ++ env)
-eval env (ELam id e) = (VClos env id e)
-eval env (EApp expr1 expr2) = case (eval env expr1) of 
-                                (VClos bodyEnv id expr)  -> eval ([(id, eval env expr2)] ++ bodyEnv) expr
-                                VPrim func -> func (eval env expr2) 
-                                _ -> throw (Error ("type error: EApp")) --VErr("type error: EApp")
+    | eval env p == (VBool True)  = eval env t 
+    | eval env p == (VBool False) = eval env f
+    | otherwise  = throw (Error ("type error: eif"))
+
+eval env (ELet var e1 e2) = eval env' e2
+  where env'              = (var, eval env e1) : env
+
+eval env (ELam id e) = VClos env id e
+
+eval env (EApp e1 e2) = 
+    case (eval env e1) of
+      VClos closEnv x body -> eval env' body
+                                     where
+                                     v = eval env e2
+                                     env' = ((x,v) : closEnv) ++ env
+      (VPrim lam) -> lam (eval env e2)
+      _ -> throw (Error "Type Error")
+
+
+eval env (ELam id e) = VClos env id e
+
 
 
 -- define and use evalOp. Will investigate later
 --------------------------------------------------------------------------------
 evalOp :: Binop -> Value -> Value -> Value
 --------------------------------------------------------------------------------
-evalOp Plus  (VInt x) (VInt y)   = (VInt(x + y))
-evalOp Minus (VInt x) (VInt y)   = (VInt(x - y))
-evalOp Mul   (VInt x) (VInt y)   = (VInt(x * y))
-evalOp Div   (VInt x) (VInt y)   = (VInt(x `div` y))
-evalOp Eq    (VInt x) (VInt y)   = (VBool(x == y))
-evalOp Eq    (VBool x) (VBool y) = (VBool (x == y))
-evalOp Eq    VNil VNil           = (VBool True)
-evalOp Ne    (VInt x) (VInt y)   = (VBool(x /= y))
-evalOp Ne    (VBool x) (VBool y) = (VBool (x /= y))
-evalOp Lt    (VInt x) (VInt y)   = (VBool(x < y))
-evalOp Le    (VInt x) (VInt y)   = (VBool(x <= y))
-evalOp And   (VBool x) (VBool y) = (VBool(x && y))
-evalOp Or    (VBool x) (VBool y) = (VBool(x || y))
-evalOp Cons  x y                 = VPair x y
-evalOp Eq _ _                    = (VBool False)
-evalOp _ _ _                     = throw (Error ("type error: binop"))
+evalOp Plus (VInt x) (VInt y) = VInt(x+y)
+evalOp Minus (VInt x) (VInt y) = VInt(x-y)
+evalOp Mul (VInt x) (VInt y) = VInt(x*y)
 
+evalOp Eq (VInt x) (VInt y) = VBool(x == y)
+evalOp Eq (VBool x) (VBool y) = VBool(x == y)
+evalOp Eq VNil VNil = VBool(True)
+evalOp Eq (VPair x y) (VPair x1 y1) = VBool((x == x1) && (y == y1))
+evalOp Eq (VPair x y) VNil = VBool(x == VNil)
+evalOp Eq VNil (VPair x y) = VBool(x == VNil)
+
+evalOp Ne (VInt x) (VInt y) = VBool(x /= y)
+evalOp Ne (VBool x) (VBool y) = VBool(x /= y)
+
+evalOp Lt (VInt x) (VInt y) = VBool(x < y)
+evalOp Le (VInt x) (VInt y) = VBool(x <= y)
+
+evalOp And (VBool x) (VBool y) = VBool(x && y)
+evalOp Or (VBool x) (VBool y) = VBool(x || y)
+
+evalOp Cons x y = VPair x y
+-- i don't know why this did not work earlier
+evalOp _ _ _ = throw (Error "type error evalOp")
 -- evalOp Minus (VInt a) (VInt b) = VInt (a - b)
 
 --------------------------------------------------------------------------------
