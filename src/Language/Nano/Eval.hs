@@ -178,18 +178,22 @@ eval env (EIf p t f)
     | eval env p == (VBool False) = eval env f
     | otherwise  = throw (Error ("type error: eif"))
 
-eval env (ELet var e1 e2) = eval (env' : env) e2
-  where env' = (var, eval env e1)
+eval env (ELet var e1 e2) = eval env' e2
+  where env'              = (var, eval env e1) : env
 
-eval env (ELam id e) = VClos env id e 
+eval env (ELam id e) = VClos env id e
 
-eval env (EApp e1 e2) =
-  case (eval env e1) of
-    VClos closEnv x body -> eval (env' : closEnv ++ env) body
-      where v = eval env e2
-            env' = (x, v)
-    VPrim lam -> lam (eval env e2)
-    _ -> throw (Error "Type Error")
+eval env (EApp e1 e2) = 
+    case (eval env e1) of
+      VClos closEnv x body -> eval env' body
+                                     where
+                                     v = eval env e2
+                                     env' = ((x,v) : closEnv) ++ env
+      (VPrim lam) -> lam (eval env e2)
+      _ -> throw (Error "Type Error")
+
+
+eval env (ELam id e) = VClos env id e
 
 
 
