@@ -167,6 +167,8 @@ exitError (Error msg) = return (VErr msg)
 --------------------------------------------------------------------------------
 eval :: Env -> Expr -> Value
 --------------------------------------------------------------------------------
+
+
 eval env a = case a of
     EInt i         -> VInt i
     EBool b        -> VBool b
@@ -185,7 +187,6 @@ eval env a = case a of
         ans = case e1 of
           ELam x e -> (eval env (ELet x e2 e))
 
--- define and use evalOp. Will investigate later
 --------------------------------------------------------------------------------
 evalOp :: Binop -> Value -> Value -> Value
 --------------------------------------------------------------------------------
@@ -212,9 +213,6 @@ evalOp binop x y = case binop of
   Cons -> VPair x y
   _ -> throw (Error "type error")
 
-
--- evalOp Minus (VInt a) (VInt b) = VInt (a - b)
-
 --------------------------------------------------------------------------------
 -- | `lookupId x env` returns the most recent
 --   binding for the variable `x` (i.e. the first
@@ -232,20 +230,14 @@ evalOp binop x y = case binop of
 --------------------------------------------------------------------------------
 lookupId :: Id -> Env -> Value
 --------------------------------------------------------------------------------
---recursive function to look for most recent
-lookupId id[] = error ("unbound variable: " ++ id)
-lookupId id ((x, y):xs)
-  | id == x = y
-  | otherwise = lookupId id xs
-
+lookupId x [] = throw (Error ("unbound variable: " ++ x))
+lookupId x (f:xs) = if (x == (fst f)) then (snd f) else lookupId x xs
 
 
 prelude :: Env
 prelude =
   [ -- HINT: you may extend this "built-in" environment
     -- with some "operators" that you find useful...
-      ("head", VPrim (\(VPair a b) -> a)),
-      ("tail", VPrim (\(VPair a b) -> b))
   ]
 
 env0 :: Env
