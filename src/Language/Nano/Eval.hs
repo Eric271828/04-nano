@@ -202,7 +202,12 @@ evalOp Minus (VInt x) (VInt y) = (VInt(x-y))
 evalOp Mul (VInt x) (VInt y) = (VInt(x*y))
 evalOp Div (VInt x) (VInt y) = (VInt(x `div` y))
 
--- evalOp Minus (VInt a) (VInt b) = VInt (a - b)
+evalOp Eq (VInt x) (VInt y) = (VBool(x==y))
+evalOp Eq (VBool x) (VBool y) = (VBool(x==y))
+evalOp Eq VNil VNil = (VBool(True))
+evalOp Eq VNil (VPair x y) = VBool(x == VNil)
+
+
 
 --------------------------------------------------------------------------------
 -- | `lookupId x env` returns the most recent
