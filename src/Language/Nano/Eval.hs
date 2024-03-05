@@ -167,55 +167,73 @@ exitError (Error msg) = return (VErr msg)
 --------------------------------------------------------------------------------
 eval :: Env -> Expr -> Value
 --------------------------------------------------------------------------------
-eval _   (EInt n)        = VInt n
-eval _   (EBool b)       = VBool b
-eval _   (ENil)          = VNil
-eval env (EVar v)        = lookupId v env
-eval env (EBin op e1 e2) = evalOp op (eval env e1) (eval env e2)
-
+eval _ (EInt i)  = (VInt i)
+eval _ (EBool b) = (VBool b)
+eval _ (ENil)    = (VNil)
+eval env (EVar id) = (lookupId id env)
+eval env (EBin func expr1 expr2) = evalOp func (eval env expr1) (eval env expr2)
 eval env (EIf p t f)
-    | eval env p == (VBool True)  = eval env t 
-    | eval env p == (VBool False) = eval env f
-    | otherwise  = throw (Error ("type error: eif"))
-
-eval env (ELet var e1 e2) = eval env' e2
-  where env'              = (var, eval env e1) : env
-
-eval env (ELam id e) = VClos env id e
-
-eval env (EApp e1 e2) = 
-    case (eval env e1) of
-      VClos closEnv x body -> eval env' body
-                                     where
-                                     v = eval env e2
-                                     env' = ((x,v) : closEnv) ++ env
-      (VPrim lam) -> lam (eval env e2)
-      _ -> throw (Error "Type Error")
-
-
-eval env (ELam id e) = VClos env id e
-
-
+          | (eval env p) /= (VBool True) && (eval env p) /= (VBool False) = throw (Error ("type error: EIf")) --VErr("type error: EIf")
+          | (eval env p) == (VBool True)  = (eval env t)
+          | (eval env p) == (VBool False) = (eval env f)
+          | otherwise = throw (Error ("type error: EIf")) --VErr("type error: EIf") 
+eval env (ELet id e1 e2) = eval bodyEnv e2
+                            where
+                              val = eval bodyEnv e1
+                              bodyEnv = ([(id, (val))] ++ env)
+eval env (ELam id e) = (VClos env id e)
+eval env (EApp expr1 expr2) = case (eval env expr1) of 
+                                (VClos bodyEnv id expr)  -> eval ([(id, eval env expr2)] ++ bodyEnv) expr
+                                VPrim func -> func (eval env expr2) 
+                                _ -> throw (Error ("type error: EApp")) --VErr("type error: EApp")
 
 --------------------------------------------------------------------------------
 evalOp :: Binop -> Value -> Value -> Value
 --------------------------------------------------------------------------------
-evalOp Plus  (VInt x) (VInt y)   = (VInt(x + y))
-evalOp Minus (VInt x) (VInt y)   = (VInt(x - y))
-evalOp Mul   (VInt x) (VInt y)   = (VInt(x * y))
-evalOp Div   (VInt x) (VInt y)   = (VInt(x `div` y))
-evalOp Eq    (VInt x) (VInt y)   = (VBool(x == y))
-evalOp Eq    (VBool x) (VBool y) = (VBool (x == y))
-evalOp Eq    VNil VNil           = (VBool True)
-evalOp Ne    (VInt x) (VInt y)   = (VBool(x /= y))
-evalOp Ne    (VBool x) (VBool y) = (VBool (x /= y))
-evalOp Lt    (VInt x) (VInt y)   = (VBool(x < y))
-evalOp Le    (VInt x) (VInt y)   = (VBool(x <= y))
-evalOp And   (VBool x) (VBool y) = (VBool(x && y))
-evalOp Or    (VBool x) (VBool y) = (VBool(x || y))
-evalOp Cons  x y                 = VPair x y
-evalOp Eq _ _                    = (VBool False)
-evalOp _ _ _                     = throw (Error ("type error: binop"))
+evalOp Plus (VInt x) (VInt y) = VInt(x+y)
+evalOp Minus (VInt x) (VInt y) = VInt(x-y)
+evalOp Mul (VInt x) (VInt y) = VInt(x*y)
+
+evalOp Eq (VInt x) (VInt y) = VBool(x == y)
+evalOp Eq (VBool x) (VBool y) = VBool(x == y)
+evalOp Eq VNil VNil = VBool(True)
+evalOp Eq (VPair x y) (VPair x1 y1) = VBool((x == x1) && (y == y1))
+evalOp Eq (VPair x y) VNil = VBool(x == VNil)
+evalOp Eq VNil (VPair x y) = VBool(x == VNil)
+
+evalOp Ne (VInt x) (VInt y) = VBool(x /= y)
+evalOp Ne (VBool x) (VBool y) = VBool(x /= y)
+
+evalOp Lt (VInt x) (VInt y) = VBool(x < y)
+evalOp Le (VInt x) (VInt y) = VBool(x <= y)
+
+evalOp And (VBool x) (VBool y) = VBool(x && y)
+evalOp Or (VBool x) (VBool y) = VBool(x || y)
+
+evalOp Cons x y = VPair x y
+-- i don't know why this did not work earlier
+evalOp _ _ _ = throw (Error "type error evalOp")
+{-
+evalOp Eq    (VInt x1)       (VInt x2)       = VBool (x1==x2)
+evalOp Eq    (VBool x1)      (VBool x2)      = VBool (x1==x2)
+evalOp Eq    (VNil)          (VNil)          = VBool True
+evalOp Eq    (VPair x1 y1)   (VNil)          = VBool False
+evalOp Eq    (VNil)          (VPair x1 y1)   = VBool False
+evalOp Eq    (VPair x1 y1)   (VPair x2 y2)   = if (x1==x2) then (evalOp Eq y1 y2) else (VBool False)
+evalOp Eq    _               _               = throw (Error ("type error: Eq"))    --VErr("type error: Eq")
+
+evalOp Ne    (VInt x1)       (VInt x2)       = VBool (x1/=x2)
+evalOp Ne    (VBool x1)      (VBool x2)      = VBool (x1/=x2)
+evalOp Ne    (VNil)          (VNil)          = VBool False
+evalOp Ne    (VPair x1 y1)   (VNil)          = VBool True
+evalOp Ne    (VNil)          (VPair x1 y1)   = VBool True
+evalOp Ne    (VPair x1 y1)   (VPair x2 y2)   = if (x1/=x2) then (evalOp Ne y1 y2) else (VBool False)
+evalOp Ne    _               _               = throw (Error ("type error: Ne"))    --VErr("type error: Ne")
+
+evalOp Cons  x               VNil            = (VPair x VNil)
+evalOp Cons  x               (VPair a b)     = (VPair x (VPair a b))
+evalOp Cons  _               _               = throw (Error ("type error: Cons"))  --VErr("type error: Cons")
+-}
 
 
 --------------------------------------------------------------------------------
@@ -236,15 +254,16 @@ evalOp _ _ _                     = throw (Error ("type error: binop"))
 lookupId :: Id -> Env -> Value
 --------------------------------------------------------------------------------
 lookupId key [] = throw (Error ("unbound variable: " ++ key))
-lookupId key ((k, v) : pairs)
-  | key == k    = v
-  | otherwise   = lookupId key pairs
+lookupId key ((x, y):xs)
+  | key == x = y
+  | otherwise = lookupId key xs
 
 prelude :: Env
 prelude =
-  [ 
-    ("head", VPrim(\(VPair x _) -> x)), 
-    ("tail", VPrim(\(VPair _ y) -> y))
+  [ -- HINT: you may extend this "built-in" environment
+    -- with some "operators" that you find useful...
+      ("head", VPrim (\(VPair a b) -> a)),
+      ("tail", VPrim (\(VPair a b) -> b))
   ]
 
 env0 :: Env
