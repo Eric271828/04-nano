@@ -218,6 +218,9 @@ evalOp Le (VInt x) (VInt y) = VBool(x<=y)
 evalOp And (VBool x) (VBool y) = VBool(x&&y)
 evalOp Or (VBool x) (VBool y) = VBool(x||y)
 
+evalOp Cons x y = VPair x y
+evalOp Eq _ _ = (VBool False)
+evalOp _ _ _ = throw(Error "type error: evalop")
 --------------------------------------------------------------------------------
 -- | `lookupId x env` returns the most recent
 --   binding for the variable `x` (i.e. the first
