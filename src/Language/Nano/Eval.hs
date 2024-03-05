@@ -198,7 +198,9 @@ eval env (EApp e1 e2) =
 evalOp :: Binop -> Value -> Value -> Value
 --------------------------------------------------------------------------------
 evalOp Plus (VInt x) (VInt y) = (VInt(x+y))
-
+evalOp Minus (VInt x) (VInt y) = (VInt(x-y))
+evalOp Mul (VInt x) (VInt y) = (VInt(x*y))
+evalOp Div (VInt x) (VInt y) = (VInt(x `div` y))
 
 -- evalOp Minus (VInt a) (VInt b) = VInt (a - b)
 
