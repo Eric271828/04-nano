@@ -178,23 +178,18 @@ eval env (EIf p t f)
     | eval env p == (VBool False) = eval env f
     | otherwise  = throw (Error ("type error: eif"))
 
-eval env (ELet var e1 e2) = eval env' e2
-  where env'              = (var, eval env e1) : env
+eval env (ELet var e1 e2) = eval (env' : env) e2
+  where env' = (var, eval env e1)
 
-eval env (ELam id e) = VClos env id e
+eval env (ELam id e) = VClos env id e 
 
-eval env (EApp e1 e2) = 
-    case (eval env e1) of
-      VClos closEnv x body -> eval env' body
-                                     where
-                                     v = eval env e2
-                                     env' = ((x,v) : closEnv) ++ env
-      (VPrim lam) -> lam (eval env e2)
-      _ -> throw (Error "Type Error")
-
-
-eval env (ELam id e) = VClos env id e
-
+eval env (EApp e1 e2) =
+  case (eval env e1) of
+    VClos closEnv x body -> eval (env' : closEnv ++ env) body
+      where v = eval env e2
+            env' = (x, v)
+    VPrim lam -> lam (eval env e2)
+    _ -> throw (Error "Type Error")
 
 
 
@@ -202,7 +197,23 @@ eval env (ELam id e) = VClos env id e
 --------------------------------------------------------------------------------
 evalOp :: Binop -> Value -> Value -> Value
 --------------------------------------------------------------------------------
-evalOp = error "TBD:evalOp"
+evalOp Plus  (VInt x) (VInt y)   = (VInt(x + y))
+evalOp Minus (VInt x) (VInt y)   = (VInt(x - y))
+evalOp Mul   (VInt x) (VInt y)   = (VInt(x * y))
+evalOp Div   (VInt x) (VInt y)   = (VInt(x `div` y))
+evalOp Eq    (VInt x) (VInt y)   = (VBool(x == y))
+evalOp Eq    (VBool x) (VBool y) = (VBool (x == y))
+evalOp Eq    VNil VNil           = (VBool True)
+evalOp Ne    (VInt x) (VInt y)   = (VBool(x /= y))
+evalOp Ne    (VBool x) (VBool y) = (VBool (x /= y))
+evalOp Lt    (VInt x) (VInt y)   = (VBool(x < y))
+evalOp Le    (VInt x) (VInt y)   = (VBool(x <= y))
+evalOp And   (VBool x) (VBool y) = (VBool(x && y))
+evalOp Or    (VBool x) (VBool y) = (VBool(x || y))
+evalOp Cons  x y                 = VPair x y
+evalOp Eq _ _                    = (VBool False)
+evalOp _ _ _                     = throw (Error ("type error: binop"))
+
 -- evalOp Minus (VInt a) (VInt b) = VInt (a - b)
 
 --------------------------------------------------------------------------------
