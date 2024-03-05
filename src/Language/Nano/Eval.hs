@@ -173,6 +173,13 @@ eval _ (ENil)    = (VNil)
 eval env (EVar c) = (lookupId c env)
 eval env (EBin op expr1 expr2) = evalOp op (eval env expr1) (eval env expr2)
 
+eval env (EIf p t f)
+    | eval env p == (VBool True)  = eval env t 
+    | eval env p == (VBool False) = eval env f
+    | otherwise  = throw (Error ("type error: eif"))
+
+
+
 
 
 -- define and use evalOp. Will investigate later
