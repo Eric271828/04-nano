@@ -244,8 +244,7 @@ prelude :: Env
 prelude =
   [ -- HINT: you may extend this "built-in" environment
     -- with some "operators" that you find useful...
-      ("head", VPrim (\(VPair a b) -> a)),
-      ("tail", VPrim (\(VPair a b) -> b))
+
   ]
 
 env0 :: Env
