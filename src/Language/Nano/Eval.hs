@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Language.Nano.Eval
   ( execFile, execString, execExpr
   , eval, lookupId, prelude
@@ -11,6 +9,7 @@ module Language.Nano.Eval
 import Control.Exception (throw, catch)
 import Language.Nano.Types
 import Language.Nano.Parser
+import Foreign.C (e2BIG)
 
 --------------------------------------------------------------------------------
 execFile :: FilePath -> IO Value
@@ -99,10 +98,10 @@ exitError (Error msg) = return (VErr msg)
 --
 -- part (a)
 --
--- >>> eval env0 (EBin Minus (EBin Plus "x" "y") (EBin Plus "z" "z1"))
+-- >>> eval env0 (EBin Minus (EBin Plus (EVar "x") (EVar "y")) (EBin Plus (EVar "z") (EVar "z1")))
 -- 0
 --
--- >>> eval env0 "p"
+-- >>> eval env0 (EVar "p")
 -- *** Exception: Error {errMsg = "unbound variable: p"}
 --
 -- part (b)
@@ -119,39 +118,39 @@ exitError (Error msg) = return (VErr msg)
 -- >>> eval []  (EBin Lt (EInt 2) (EBool True))
 -- *** Exception: Error {errMsg = "type error: binop"}
 --
--- >>> let e1 = EIf (EBin Lt "z1" "x") (EBin Ne "y" "z") (EBool False)
+-- >>> let e1 = EIf (EBin Lt (EVar "z1") (EVar "x")) (EBin Ne (EVar "y") (EVar "z")) (EBool False)
 -- >>> eval env0 e1
 -- True
 --
--- >>> let e2 = EIf (EBin Eq "z1" "x") (EBin Le "y" "z") (EBin Le "z" "y")
+-- >>> let e2 = EIf (EBin Eq (EVar "z1") (EVar "x")) (EBin Le (EVar "y") (EVar "z")) (EBin Le (EVar "z") (EVar "y"))
 -- >>> eval env0 e2
 -- False
 --
 -- part (c)
 --
--- >>> let e1 = EBin Plus "x" "y"
+-- >>> let e1 = EBin Plus (EVar "x") (EVar "y")
 -- >>> let e2 = ELet "x" (EInt 1) (ELet "y" (EInt 2) e1)
 -- >>> eval [] e2
 -- 3
 --
 -- part (d)
 --
--- >>> eval [] (EApp (ELam "x" (EBin Plus "x" "x")) (EInt 3))
+-- >>> eval [] (EApp (ELam "x" (EBin Plus (EVar "x") (EVar "x"))) (EInt 3))
 -- 6
 --
--- >>> let e3 = ELet "h" (ELam "y" (EBin Plus "x" "y")) (EApp "f" "h")
+-- >>> let e3 = ELet "h" (ELam "y" (EBin Plus (EVar "x") (EVar "y"))) (EApp (EVar "f") (EVar "h"))
 -- >>> let e2 = ELet "x" (EInt 100) e3
--- >>> let e1 = ELet "f" (ELam "g" (ELet "x" (EInt 0) (EApp "g" (EInt 2)))) e2
+-- >>> let e1 = ELet "f" (ELam "g" (ELet "x" (EInt 0) (EApp (EVar "g") (EInt 2)))) e2
 -- >>> eval [] e1
 -- 102
 --
 -- part (e)
 -- |
 -- >>> :{
--- eval [] (ELet "fac" (ELam "n" (EIf (EBin Eq "n" (EInt 0))
+-- eval [] (ELet "fac" (ELam "n" (EIf (EBin Eq (EVar "n") (EInt 0))
 --                                  (EInt 1)
---                                  (EBin Mul "n" (EApp "fac" (EBin Minus "n" (EInt 1))))))
---             (EApp "fac" (EInt 10)))
+--                                  (EBin Mul (EVar "n") (EApp (EVar "fac") (EBin Minus (EVar "n") (EInt 1))))))
+--             (EApp (EVar "fac") (EInt 10)))
 -- :}
 -- 3628800
 --
@@ -160,58 +159,75 @@ exitError (Error msg) = return (VErr msg)
 -- >>> let el = EBin Cons (EInt 1) (EBin Cons (EInt 2) ENil)
 -- >>> execExpr el
 -- (1 : (2 : []))
--- >>> execExpr (EApp "head" el)
+-- >>> execExpr (EApp (EVar "head") el)
 -- 1
--- >>> execExpr (EApp "tail" el)
+-- >>> execExpr (EApp (EVar "tail") el)
 -- (2 : [])
 --------------------------------------------------------------------------------
 eval :: Env -> Expr -> Value
 --------------------------------------------------------------------------------
+-- eval = error "TBD:eval"
+eval _ (EInt n)        = VInt n
+eval _ (ENil)          = VNil
+eval _ (EBool b)       = VBool b
+eval env (EVar x)        = lookupId x env
+eval env (EBin op e1 e2) = evalOp op v1 v2
+  where
+    v1 = eval env e1
+    v2 = eval env e2
+
+eval env (EIf p t f)  = eval env (if getBool (eval env p) then t else f)
+  where
+    getBool :: Value -> Bool
+    getBool (VBool bool) = bool
+    getBool _ = throw (Error "type error: predicate not a boolean")
+
+eval env (ELet id e1 e2) = eval ((id, eval env e1):env) e2
+    
+eval env (ELam x y) = VClos env x y
+
+eval env (EApp e1 e2) = evApp (getId e1) (eval env e1) (eval env e2)
+  where
+    getId :: Expr -> Id
+    getId (EVar id) = id
+    getId _ = ""
+
+evApp :: Id -> Value -> Value -> Value
+evApp id (VClos env' x body) value = eval env'' body
+  where
+    env'' = (x, value) : (id, VClos env' x body) : env'
+evApp _ (VPrim (func)) value = func value
+evApp _ _ _ = throw (Error "not a function")
 
 
-eval env a = case a of
-    EInt i         -> VInt i
-    EBool b        -> VBool b
-    EVar id        -> lookupId id env
-    ENil           -> VNil
-    EBin binop x y -> evalOp binop (eval env x) (eval env y)
-    EIf p t f -> ans
-      where
-        ans = case (eval env p) of
-          VBool b -> if b then (eval env t) else (eval env f)
-          _ -> throw (Error "type error")
-    ELet x e1 e2 -> (eval ((x,(eval env e1)):env) e2)
-    ELam x e1 -> VClos env x e1
-    EApp e1 e2 -> ans
-      where
-        ans = case e1 of
-          ELam x e -> (eval env (ELet x e2 e))
 
 --------------------------------------------------------------------------------
 evalOp :: Binop -> Value -> Value -> Value
 --------------------------------------------------------------------------------
-evalOp binop (VInt x) (VInt y) = case binop of
-  Plus -> VInt (x + y)
-  Minus -> VInt (x - y)
-  Mul -> VInt (x * y)
-  Eq -> VBool (x == y)
-  Ne -> VBool (x /= y)
-  Lt -> VBool (x < y)
-  Le -> VBool (x <= y)
-  Cons -> VPair (VInt x) (VInt y)
-  _ -> throw (Error "type error")
+evalOp Plus (VInt a) (VInt b) = VInt (a + b)
+evalOp Minus (VInt a) (VInt b) = VInt (a - b)
+evalOp Mul (VInt a) (VInt b) = VInt (a * b)
+evalOp Eq (VInt a) ( VInt b) = (VBool (a == b))
+evalOp Eq (VBool a) (VBool b) = VBool (a == b) 
+evalOp Eq (VNil) (VNil) = VBool(True)
+evalOp Eq a b = checkEq a b
+evalOp Ne (VInt a) (VInt b) = (VBool (a /= b))
+evalOp Ne (VBool a) (VBool b) = (VBool (a /= b))
+evalOp Lt (VInt a) (VInt b) = VBool (a < b)
+evalOp Le (VInt a) (VInt b) = VBool (a <= b)
+evalOp And (VBool a) (VBool b) = VBool (a && b)
+evalOp Or (VBool a) (VBool b) = VBool (a || b)
+evalOp Cons a b = VCons a b
+evalOp binop _ _ = throw (Error "type error : binop")
 
-evalOp binop (VBool x) (VBool y) = case binop of
-  Eq ->  VBool (x == y)
-  Ne ->  VBool (x /= y)
-  And -> VBool (x && y)
-  Or  -> VBool (x || y)
-  Cons -> VPair (VBool x) (VBool y)
-  _ -> throw (Error "type error")
-
-evalOp binop x y = case binop of
-  Cons -> VPair x y
-  _ -> throw (Error "type error")
+checkEq :: Value -> Value -> Value
+checkEq (VCons _ _) (VNil) = VBool(False)
+checkEq (VNil) (VCons _ _) = VBool(True)
+checkEq (VCons m ms) (VCons m2 m2s) =  VBool ( vEqual && vsEqual)
+  where 
+    (VBool vEqual) = (checkEq m m2)
+    (VBool vsEqual) = (checkEq ms m2s)
+checkEq _ _ = throw (Error ("type error: invalid equality"))
 
 --------------------------------------------------------------------------------
 -- | `lookupId x env` returns the most recent
@@ -230,15 +246,28 @@ evalOp binop x y = case binop of
 --------------------------------------------------------------------------------
 lookupId :: Id -> Env -> Value
 --------------------------------------------------------------------------------
-lookupId x [] = throw (Error ("unbound variable: " ++ x))
-lookupId x (f:xs) = if (x == (fst f)) then (snd f) else lookupId x xs
-
+lookupId x env
+  | null env = throw (Error ("unbound variable: " ++ x))
+  | x == fst(head env) = snd(head env)
+  | otherwise = lookupId x (tail env)
 
 prelude :: Env
 prelude =
   [ -- HINT: you may extend this "built-in" environment
     -- with some "operators" that you find useful...
+    ("head", VPrim ( h) ),
+    ("tail", VPrim ( t ))
   ]
+
+h :: Value -> Value
+h (VNil) = throw (Error "no head in empty list")
+h (VCons v _) = v
+h _ = throw (Error "type error : head requires a list")
+
+t:: Value -> Value
+t (VNil) = throw (Error "no tail in empty list")
+t (VCons _ vs) = vs
+t _ = throw (Error "type error: tail requires a list")
 
 env0 :: Env
 env0 =  [ ("z1", VInt 0)
