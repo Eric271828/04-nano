@@ -174,24 +174,24 @@ eval env (EVar c) = (lookupId c env)
 eval env (EBin op expr1 expr2) = evalOp op (eval env expr1) (eval env expr2)
 
 eval env (EIf p t f)
-    | eval env p == (VBool True)  = eval env t
+    | eval env p == (VBool True)  = eval env t 
     | eval env p == (VBool False) = eval env f
     | otherwise  = throw (Error ("type error: eif"))
 
 eval env (ELet var e1 e2) = eval (env' : env) e2
   where env' = (var, eval env e1)
 
-
+eval env (ELam id e) = VClos env id e 
 
 eval env (EApp e1 e2) =
-  case eval env e1 of
+  case (eval env e1) of
     VClos closEnv x body -> eval (env' : closEnv ++ env) body
       where v = eval env e2
             env' = (x, v)
     VPrim lam -> lam (eval env e2)
     _ -> throw (Error "Type Error")
 
-eval env (ELam id e) = VClos env id e
+
 
 -- define and use evalOp. Will investigate later
 --------------------------------------------------------------------------------
@@ -229,8 +229,8 @@ prelude :: Env
 prelude =
   [ -- HINT: you may extend this "built-in" environment
     -- with some "operators" that you find useful...
-    ("head", VPrim (\(VPair x y) -> x)),
-    ("tail", VPrim (\(VPair x y) -> y))
+    ("head", VPrim(\(VPair x y) -> x)), 
+    ("tail", VPrim(\(VPair x y) -> y))
   ]
 
 env0 :: Env
