@@ -236,19 +236,16 @@ evalOp _ _ _                     = throw (Error ("type error: binop"))
 lookupId :: Id -> Env -> Value
 --------------------------------------------------------------------------------
 --recursive function to look for most recent
-lookupId id[] = error ("unbound variable: " ++ id)
-lookupId id ((x, y):xs)
-  | id == x = y
-  | otherwise = lookupId id xs
-
-
+lookupId key [] = throw (Error ("unbound variable: " ++ key))
+lookupId key ((k, v) : pairs)
+  | key == k    = v
+  | otherwise   = lookupId key pairs
 
 prelude :: Env
 prelude =
-  [ -- HINT: you may extend this "built-in" environment
-    -- with some "operators" that you find useful...
-    ("head", VPrim (\(VPair x y) -> x)),
-    ("tail", VPrim (\(VPair x y) -> y))
+  [ 
+    ("head", VPrim(\(VPair x _) -> x)), 
+    ("tail", VPrim(\(VPair _ y) -> y))
   ]
 
 env0 :: Env
