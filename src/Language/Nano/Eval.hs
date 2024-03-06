@@ -174,14 +174,14 @@ eval env (EVar c) = (lookupId c env)
 eval env (EBin op expr1 expr2) = evalOp op (eval env expr1) (eval env expr2)
 
 eval env (EIf p t f)
-    | eval env p == (VBool True)  = eval env t 
+    | eval env p == (VBool True)  = eval env t
     | eval env p == (VBool False) = eval env f
     | otherwise  = throw (Error ("type error: eif"))
 
 eval env (ELet var e1 e2) = eval (env' : env) e2
   where env' = (var, eval env e1)
 
-eval env (ELam id e) = VClos env id e 
+eval env (ELam id e) = VClos env id e
 
 eval env (EApp e1 e2) =
   case (eval env e1) of
@@ -197,30 +197,30 @@ eval env (EApp e1 e2) =
 --------------------------------------------------------------------------------
 evalOp :: Binop -> Value -> Value -> Value
 --------------------------------------------------------------------------------
-evalOp Plus (VInt x) (VInt y) = (VInt(x+y))
-evalOp Minus (VInt x) (VInt y) = (VInt(x-y))
-evalOp Mul (VInt x) (VInt y) = (VInt(x*y))
-evalOp Div (VInt x) (VInt y) = (VInt(x `div` y))
+evalOp Plus (VInt x) (VInt y) = (VInt (x+y))
+evalOp Minus (VInt x) (VInt y) = (VInt (x-y))
+evalOp Mul (VInt x) (VInt y) = (VInt (x*y))
+evalOp Div (VInt x) (VInt y) = (VInt (x `div` y))
 
-evalOp Eq (VInt x) (VInt y) = (VBool(x==y))
-evalOp Eq (VBool x) (VBool y) = (VBool(x==y))
-evalOp Eq VNil VNil = (VBool(True))
-evalOp Eq VNil (VPair x y) = VBool(x == VNil)
+evalOp Eq (VInt x) (VInt y) = (VBool (x==y))
+evalOp Eq (VBool x) (VBool y) = (VBool (x==y))
+evalOp Eq VNil VNil = (VBool (True))
+evalOp Eq VNil (VPair x y) = VBool (x == VNil)
 evalOp Eq (VPair x y) VNil = VBool (x == VNil)
 evalOp Eq (VPair x y) (VPair x1 y1) = VBool ((x==x1)&&(y==y1))
 
-evalOp Ne (VInt x) (VInt y) = VBool(x/=y) 
-evalOp Ne (VBool x) (VBool y) = VBool(x/=y) 
+evalOp Ne (VInt x) (VInt y) = VBool (x/=y)
+evalOp Ne (VBool x) (VBool y) = VBool (x/=y)
 
-evalOp Lt (VInt x) (VInt y) = VBool(x<y)
-evalOp Le (VInt x) (VInt y) = VBool(x<=y)
+evalOp Lt (VInt x) (VInt y) = VBool (x<y)
+evalOp Le (VInt x) (VInt y) = VBool (x<=y)
 
-evalOp And (VBool x) (VBool y) = VBool(x&&y)
-evalOp Or (VBool x) (VBool y) = VBool(x||y)
+evalOp And (VBool x) (VBool y) = VBool (x&&y)
+evalOp Or (VBool x) (VBool y) = VBool (x||y)
 
 evalOp Cons x y = VPair x y
-evalOp Eq _ _ = (VBool False)
-evalOp _ _ _ = throw(Error "type error: evalop")
+evalOp Eq _ _ = VBool False
+evalOp _ _ _ = throw (Error "type error: evalop")
 --------------------------------------------------------------------------------
 -- | `lookupId x env` returns the most recent
 --   binding for the variable `x` (i.e. the first
@@ -239,7 +239,7 @@ evalOp _ _ _ = throw(Error "type error: evalop")
 lookupId :: Id -> Env -> Value
 --------------------------------------------------------------------------------
 --recursive function to look for most recent
-lookupId id[] = error ("unbound variable: " ++ id)
+lookupId id [] = VNil
 lookupId id ((x, y):xs)
   | id == x = y
   | otherwise = lookupId id xs
@@ -250,8 +250,8 @@ prelude :: Env
 prelude =
   [ -- HINT: you may extend this "built-in" environment
     -- with some "operators" that you find useful...
-    ("head", VPrim(\(VPair x y) -> x)), 
-    ("tail", VPrim(\(VPair x y) -> y))
+    ("head", VPrim (\(VPair x y) -> x)),
+    ("tail", VPrim (\(VPair x y) -> y))
   ]
 
 env0 :: Env
