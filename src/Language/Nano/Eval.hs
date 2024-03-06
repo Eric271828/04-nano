@@ -239,19 +239,17 @@ evalOp _ _ _ = throw (Error "type error: evalop")
 lookupId :: Id -> Env -> Value
 --------------------------------------------------------------------------------
 --recursive function to look for most recent
-lookupId key[] = error ("unbound variable: " ++ key)
+lookupId key [] = throw (Error ("unbound variable: " ++ key))
 lookupId key ((x, y):xs)
   | key == x = y
   | otherwise = lookupId key xs
-
-
 
 prelude :: Env
 prelude =
   [ -- HINT: you may extend this "built-in" environment
     -- with some "operators" that you find useful...
-    ("head", VPrim (\(VPair x y) -> x)),
-    ("tail", VPrim (\(VPair x y) -> y))
+      ("head", VPrim (\(VPair a b) -> a)),
+      ("tail", VPrim (\(VPair a b) -> b))
   ]
 
 env0 :: Env
