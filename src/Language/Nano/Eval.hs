@@ -198,7 +198,6 @@ eval env (EApp e1 e2) =
 evalOp :: Binop -> Value -> Value -> Value
 --------------------------------------------------------------------------------
 evalOp Plus (VInt x) (VInt y) = (VInt (x+y))
-evalOp Plus _ _ = throw(Error "type erro: evalop")
 evalOp Minus (VInt x) (VInt y) = (VInt (x-y))
 evalOp Mul (VInt x) (VInt y) = (VInt (x*y))
 evalOp Div (VInt x) (VInt y) = (VInt (x `div` y))
